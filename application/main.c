@@ -416,7 +416,7 @@ void drawClock(int hour, int minute, int second)
 int timing = 0;
 int settingTime = 0;
 int hour = 0, minute = 0, second = 0;
-int j = 0;
+int j = 1;
 static void tomatoClockFunc()
 {
     //title
@@ -430,26 +430,33 @@ static void tomatoClockFunc()
 
     //timingStr
 
-    char timingStr[9];
-    timingStr[0] = hour / 10 + '0';
-    timingStr[1] = hour % 10 + '0';
-    timingStr[2] = timingStr[5] = ':';
-    timingStr[3] = minute / 10 + '0';
-    timingStr[4] = minute % 10 + '0';
-    timingStr[6] = second / 10 + '0';
-    timingStr[7] = second % 10 + '0';
-    timingStr[8] = '\0';
-    lcd_show_string(90, 130, 16, timingStr);
-
-    lcd_show_num(150, 140, hour, 2, 16);
-    lcd_show_num(150, 160, minute, 2, 16);
-    lcd_show_num(150, 180, second, 2, 16);
-    lcd_show_num(150, 200, j, 1, 16);
-
-    if (settingTime == 1)
+    while (1)
     {
-        lcd_show_string(50, 50, 16, "***Setting Time***");
+
+        char timingStr[9];
+        timingStr[0] = hour / 10 + '0';
+        timingStr[1] = hour % 10 + '0';
+        timingStr[2] = timingStr[5] = ':';
+        timingStr[3] = minute / 10 + '0';
+        timingStr[4] = minute % 10 + '0';
+        timingStr[6] = second / 10 + '0';
+        timingStr[7] = second % 10 + '0';
+        timingStr[8] = '\0';
+
+        lcd_show_string(90, 130, 16, timingStr);
+
+        lcd_show_num(160, 140, hour, 2, 16);
+        lcd_show_num(160, 160, minute, 2, 16);
+        lcd_show_num(160, 180, second, 2, 16);
+        lcd_show_num(160, 200, j, 2, 16);
+
+        if (settingTime == 1)
+        {
+            lcd_show_string(50, 50, 16, "***Setting Time***");
+        }
+        os_task_msleep(200);
     }
+
 }
 
 static void infraListenFunc(void *parameter)
@@ -467,84 +474,124 @@ static void infraListenFunc(void *parameter)
 
     while (1)
     {
-        settingTime = 1;
+#ifdef INF_READ_BLOCK
         os_device_read_block(infrared, 0, &info, sizeof(info));
+#else
+        if (os_device_read_nonblock(infrared, 0, &info, sizeof(info)) != sizeof(info))
+        {
+            os_task_msleep(100);
+            continue;
+        }
+#endif
         cur_time = os_tick_get();
+
         // one command, twice send
+        int input = 0;
         if ((cur_time - pre_time) > 20)
         {
             switch (info.data)
             {
             case 22:
                 num = 1;
-
+                input = 1;
                 break;
             case 25:
                 num = 2;
+                input = 1;
                 break;
             case 13:
                 num = 3;
+                input = 1;
                 break;
             case 12:
                 num = 4;
+                input = 1;
                 break;
             case 24:
                 num = 5;
+                input = 1;
                 break;
             case 94:
                 num = 6;
+                input = 1;
                 break;
             case 8:
                 num = 7;
+                input = 1;
                 break;
             case 28:
                 num = 8;
+                input = 1;
                 break;
             case 90:
                 num = 9;
+                input = 1;
                 break;
             case 66:
                 num = 0;
+                input = 1;
                 break;
             case 74:
                 //str = "DELETE";
+                input = 1;
                 break;
+
+            }
+            //lcd_clear(WHITE);
+            //lcd_show_string(120 - strlen(str) * 12 / 2, 120, 24, str);
+
+            if (input == 1)
+            {
+                switch (j)
+                {
+                case 1:
+                    hour = num * 10;
+                    break;
+                case 2:
+                    hour += num;
+                    break;
+                case 3:
+                    minute = 10 * num;
+                    break;
+                case 4:
+                    minute += num;
+                    break;
+                case 5:
+                    second = 10 * num;
+                    break;
+                case 6:
+                    second += num;
+                    break;
+                default:
+                    break;
+                }
+                ++j;
+                /*
+                if (j >= 7)
+                {
+                    settingTime = 0;
+                    j = 1;
+                    lcd_show_string(50, 50, 16, "                                    ");
+                    if (minute > 60 || second > 60)
+                    {
+                        lcd_show_string(50, 50, 16, "***Invalid Time***");
+                        hour = 0;
+                        minute = 0;
+                        second = 0;
+                    }
+                    os_task_destroy(infraListen);
+                }
+*/
+                lcd_show_num(30, 120, num, 1, 16);
+                lcd_show_num(30, 140, hour, 2, 16);
+                lcd_show_num(30, 160, minute, 2, 16);
+                lcd_show_num(30, 180, second, 2, 16);
             }
 
+            //LOG_I(DBG_TAG, "(%d) data:%d key: %s", ++infrared_rx_count, info.data, str);
         }
-        lcd_show_num(30, 120, num, 1, 16);
-        lcd_show_num(30, 140, hour, 2, 16);
-        lcd_show_num(30, 160, minute, 2, 16);
-        lcd_show_num(30, 180, second, 2, 16);
-        lcd_show_num(30, 200, j, 1, 16);
-
-        switch (j)
-        {
-        case 0:
-            hour = num * 10;
-            break;
-        case 1:
-            hour += num;
-            break;
-        case 2:
-            minute = num * 10;
-            break;
-        case 3:
-            minute += num;
-            break;
-        case 4:
-            second = num * 10;
-            break;
-        case 5:
-            second += num;
-            break;
-        }
-        j++;
-        if (j >= 6)
-        {
-            os_task_destroy(infraListen);
-        }
-        os_task_msleep(200);
+        pre_time = cur_time;
+        //os_task_msleep(1500);
     }
 }
 
@@ -577,7 +624,15 @@ void key_callback(int key_pin)
         else if (scene == 1)
         {
             settingTime = 1;
-            infraListen = os_task_create("infraListen", infraListenFunc, NULL, 1024, 5);
+            hour = 0;
+            minute = 0;
+            second = 0;
+
+            os_device_t *infrared;
+            struct os_infrared_info info;
+            os_device_read_block(infrared, 0, &info, sizeof(info));
+
+            infraListen = os_task_create("infraListen", infraListenFunc, NULL, 2048, 5);
             OS_ASSERT(infraListen);
             os_task_startup(infraListen);
         }
