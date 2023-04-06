@@ -1,0 +1,32 @@
+menu "network positon"
+
+	config NET_POS_DEV_REC_POS
+		bool "enable device receive position result"
+		default n
+	
+	config ONEPOS_NET_POS_DEBUG
+		bool "enable network position debug"
+		default n
+	
+	config NET_POS_SUPP_REMOTE_CONF
+		bool "enable remote config"
+		default n
+	
+		if NET_POS_DEV_REC_POS
+			config REC_POS_TIMEOUT
+				int "timeout while device receive position result(ms)"
+				range 2900 65535
+				default 2900
+		endif
+	
+	config NET_POS_DEF_INTERVAL
+		int "interval of OnePos(should 3 or over)(s)"
+		range 3 65535
+		default 3	
+
+	config NET_POS_DEF_SEV_TYPE
+		int "default position server run type(0:period ciculation;1:single)"
+		range 0 1
+		default 0
+endmenu
+
